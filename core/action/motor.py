@@ -42,12 +42,28 @@ class Motor:
                 key_map = {
                     "return": "enter",
                     "super": "win",
-                    "windows": "win"
+                    "windows": "win",
+                    "control": "ctrl"
                 }
                 key = key_map.get(key, key)
 
                 print(f"ACT: Pressing key '{key}'")
                 pyautogui.press(key)
+                return True
+
+            elif action_type == "hotkey":
+                keys = action_data["keys"]
+                # Clean up keys
+                key_map = {
+                    "return": "enter",
+                    "super": "win",
+                    "windows": "win",
+                    "control": "ctrl"
+                }
+                keys = [key_map.get(k.lower(), k.lower()) for k in keys]
+
+                print(f"ACT: Hotkey sequence {keys}")
+                pyautogui.hotkey(*keys)
                 return True
 
         except Exception as e:
