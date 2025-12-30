@@ -3,8 +3,12 @@ import os
 os.environ["DISPLAY"] = ":0"
 
 import time
+import re
 import pyautogui
+import subprocess
+import numpy as np
 from datetime import datetime
+from PIL import Image
 from core.config import config
 from core.brain.planner import Planner
 from core.brain.memory import ShortTermMemory
@@ -13,9 +17,54 @@ from core.vision.parser import ActionParser
 from core.vision.ocr import OCRProcessor
 from core.action.motor import Motor
 
+def is_screen_black(image: Image.Image) -> bool:
+    """Checks if the screenshot is mostly black."""
+    try:
+        # Convert to numpy array for fast checking
+        arr = np.array(image)
+        # Check if mean brightness is very low (e.g. < 5)
+        return np.mean(arr) < 5
+    except Exception:
+        return False
+
+def wake_screen():
+    """Attempts to wake the screen using xset."""
+    try:
+        print("DEBUG: Attempting to wake screen with xset...")
+        subprocess.run(['xset', 'dpms', 'force', 'on'], check=False)
+        subprocess.run(['xset', '-dpms'], check=False) # Disable energy saving
+        subprocess.run(['xset', 's', 'off'], check=False) # Disable screensaver
+    except Exception as e:
+        print(f"WARNING: Failed to run xset: {e}")
+
+def parse_brain_command(plan_text: str) -> dict:
+    """Parses direct commands from the Brain, bypassing Vision."""
+    plan_text = plan_text.lower()
+
+    # 1. Hotkeys: "Press keys 'ctrl+alt+t'"
+    # Regex look for: press key(s) '...' or "..."
+    match_keys = re.search(r"press keys? ['\"](.*?)['\"]", plan_text)
+    if match_keys:
+        keys_str = match_keys.group(1)
+        # Split by + or space or comma
+        keys = [k.strip() for k in re.split(r'[+, ]', keys_str) if k.strip()]
+        return {"type": "hotkey", "keys": keys}
+
+    # 2. Single Key: "Press key 'enter'"
+    match_key = re.search(r"press key ['\"](.*?)['\"]", plan_text)
+    if match_key:
+        return {"type": "key", "content": match_key.group(1)}
+
+    # 3. Type: "Type 'sudo apt update'"
+    match_type = re.search(r"type ['\"](.*?)['\"]", plan_text)
+    if match_type:
+        return {"type": "type", "content": match_type.group(1)}
+
+    return None
+
 def main():
     print("--- SOVEREIGN AGENT V3 (HYBRID ARCHITECTURE) ---")
-    
+
     # Initialize Components
     memory = ShortTermMemory()
     planner = Planner()
@@ -46,10 +95,16 @@ def main():
             screenshot = pyautogui.screenshot()
             # Save debug screenshot
             screenshot.save(f"debug_monitor_{cycle_id}.png")
-            print(f"DEBUG: Saved screenshot to debug_monitor_{cycle_id}.png")
+
+            # Check for black screen
+            if is_screen_black(screenshot):
+                print("(!) CRITICAL: Screen appears to be BLACK (off or locked).")
+                wake_screen()
+                # If it's the lock screen, we might need to blindly type password?
+                # But let's see if OCR picks up anything first.
+
         except Exception as e:
             print(f"CRITICAL PERCEPTION ERROR: Could not take screenshot. {e}")
-            print("HINT: Ensure 'scrot' is installed (see install.md) and DISPLAY=:0 is correct.")
             time.sleep(5)
             continue
 
@@ -58,35 +113,36 @@ def main():
         
         if len(screen_text.strip()) == 0:
             print("(!) WARNING: OCR detected 0 characters.")
-            print("POSSIBLE CAUSES:")
-            print("1. Screen is locked (Black screen). -> Enable Auto-Login (see install.md).")
-            print("2. Missing dependencies (scrot/tesseract). -> Run 'sudo apt install scrot tesseract-ocr'.")
-            print("3. Application is purely graphical with no text.")
-            # We proceed anyway, relying on Vision to see icons.
 
         # 2. PLANNING (Brain)
         high_level_plan = planner.plan_next_step(objective, memory, screen_text)
 
-        # 3. GROUNDING (Vision)
-        # Check if plan is a direct command to skip vision
-        if "type" in high_level_plan.lower() or "press" in high_level_plan.lower():
-             pass
+        # 3. GROUNDING OR SHORTCUT (Vision vs Logic)
+        action_data = None
 
-        raw_action = vision.get_action(high_level_plan, screenshot)
-        action_data = parser.parse(raw_action)
+        # Check if plan is a direct command (optimization)
+        direct_cmd = parse_brain_command(high_level_plan)
+
+        if direct_cmd:
+            print(f"DEBUG: Bypassing Vision. Executing direct command: {direct_cmd}")
+            action_data = direct_cmd
+        else:
+            # Use Vision Model to find coordinates
+            raw_action = vision.get_action(high_level_plan, screenshot)
+            action_data = parser.parse(raw_action)
 
         # 4. ACTION (Motor)
         if action_data:
             success = motor.execute(action_data)
             status = "SUCCESS" if success else "FAILED"
         else:
-            print(f"FAILED to parse action from: {raw_action}")
+            print(f"FAILED to parse action.")
             status = "FAILED PARSING"
             success = False
 
         # 5. REFLECTION / MEMORY
-        memory.add_event(f"State: ... -> Plan: {high_level_plan} -> Action: {raw_action} -> Result: {status}")
-        
+        memory.add_event(f"State: ... -> Plan: {high_level_plan} -> Action: {action_data} -> Result: {status}")
+
         if not success and "wait" not in high_level_plan.lower():
             print("(!) Retrying or changing strategy next cycle...")
         
