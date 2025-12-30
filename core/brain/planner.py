@@ -24,14 +24,18 @@ class Planner:
 
         {memory.get_context()}
 
+        CRITICAL SAFETY PROTOCOLS:
+        1. SELF-AWARENESS: You are running inside a terminal window.
+        2. FORBIDDEN ZONE: Do NOT type commands into the terminal that shows 'main.py', 'Sovereign Agent', or these instructions. This is your own brain.
+        3. STARTING A TASK: If you need to run a command, ALWAYS open a NEW terminal first.
+           - Preferred Method: "Press keys 'ctrl+alt+t'" (Global Shortcut).
+           - Alternative: "Click on Terminal icon" (Only if specific icon is visible and distinct from current window).
+
         INSTRUCTIONS:
-        1. Analyze the screen text to understand the current state.
-        2. Decide the absolute next step. Be extremely specific.
-        3. UNLOCKING: If the screen is locked (contains "Password", "Unlock"), instruction MUST be "Type '{config.PC_PASSWORD}'" followed by "Press key 'enter'".
-        4. TERMINAL: If you need to open a terminal, PREFER using the keyboard shortcut: "Press keys 'ctrl+alt+t'". Do NOT try to click an icon unless the shortcut fails.
-        5. TYPING: If you need to type something, specify "Type 'text'".
-        6. PRESSING: If you need to press a key, specify "Press key 'enter'".
-        7. OUTPUT FORMAT: Just the plain instruction string. No JSON, no markdown.
+        1. Analyze the OCR text. If you see "ENTER OBJECTIVE" or "NEW CYCLE", you are looking at yourself.
+           - Action: "Press keys 'ctrl+alt+t'" (to spawn a fresh environment) OR "Press keys 'super+h'" (to minimize).
+        2. UNLOCKING: If screen locked ("Password"), -> "Type '{config.PC_PASSWORD}'" -> "Press key 'enter'".
+        3. OUTPUT FORMAT: Plain text instruction. No Markdown.
 
         Example outputs:
         - "Press keys 'ctrl+alt+t'"

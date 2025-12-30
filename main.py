@@ -62,6 +62,16 @@ def parse_brain_command(plan_text: str) -> dict:
 
     return None
 
+def check_self_observation(ocr_text: str) -> str:
+    """Detects if the agent is looking at its own log output."""
+    markers = ["ENTER OBJECTIVE", "Sovereign Agent", "NEW CYCLE", "brain/planner.py"]
+    count = sum(1 for m in markers if m.lower() in ocr_text.lower())
+
+    if count >= 1:
+        print("(!) SELF-AWARENESS: I see my own logs. Warning the Brain.")
+        return "[SYSTEM WARNING: YOU ARE LOOKING AT YOUR OWN CONSOLE. DO NOT TYPE COMMANDS HERE. OPEN A NEW TERMINAL (CTRL+ALT+T) OR MINIMIZE THIS WINDOW FIRST.]\n\n"
+    return ""
+
 def main():
     print("--- SOVEREIGN AGENT V3 (HYBRID ARCHITECTURE) ---")
 
@@ -71,7 +81,7 @@ def main():
     vision = VisionClient()
     ocr = OCRProcessor()
     motor = Motor()
-    
+
     # Determine Screen Size (Dynamic)
     try:
         w, h = pyautogui.size()
@@ -100,8 +110,6 @@ def main():
             if is_screen_black(screenshot):
                 print("(!) CRITICAL: Screen appears to be BLACK (off or locked).")
                 wake_screen()
-                # If it's the lock screen, we might need to blindly type password?
-                # But let's see if OCR picks up anything first.
 
         except Exception as e:
             print(f"CRITICAL PERCEPTION ERROR: Could not take screenshot. {e}")
@@ -114,8 +122,12 @@ def main():
         if len(screen_text.strip()) == 0:
             print("(!) WARNING: OCR detected 0 characters.")
 
+        # Inject Self-Awareness Warning
+        context_warning = check_self_observation(screen_text)
+        full_context = context_warning + screen_text
+
         # 2. PLANNING (Brain)
-        high_level_plan = planner.plan_next_step(objective, memory, screen_text)
+        high_level_plan = planner.plan_next_step(objective, memory, full_context)
 
         # 3. GROUNDING OR SHORTCUT (Vision vs Logic)
         action_data = None
