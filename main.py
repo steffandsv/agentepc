@@ -1,5 +1,10 @@
+import os
+# Ensure Display is set before importing pyautogui
+os.environ["DISPLAY"] = ":0"
+
 import time
 import pyautogui
+from datetime import datetime
 from core.config import config
 from core.brain.planner import Planner
 from core.brain.memory import ShortTermMemory
@@ -19,26 +24,37 @@ def main():
     motor = Motor()
     
     # Determine Screen Size (Dynamic)
-    w, h = pyautogui.size()
+    try:
+        w, h = pyautogui.size()
+        print(f"DEBUG: Screen size detected as {w}x{h}")
+    except Exception as e:
+        print(f"WARNING: Could not detect screen size: {e}. using default 1920x1080")
+        w, h = 1920, 1080
+
     parser = ActionParser(w, h)
     
     objective = input(">> ENTER OBJECTIVE: ")
     
     while True:
         print("\n--- NEW CYCLE ---")
+        cycle_id = datetime.now().strftime("%H%M%S")
 
         # 1. PERCEPTION
         screenshot = pyautogui.screenshot()
+        # Save debug screenshot
+        screenshot.save(f"debug_monitor_{cycle_id}.png")
+        print(f"DEBUG: Saved screenshot to debug_monitor_{cycle_id}.png")
+
         screen_text = ocr.extract_text(screenshot)
-        print(f"PERCEPTION: Saw {len(screen_text)} chars of text.")
+        print(f"PERCEPTION (OCR PREVIEW):\n{screen_text[:500]}\n[...]")
         
         # 2. PLANNING (Brain)
         high_level_plan = planner.plan_next_step(objective, memory, screen_text)
-        
+
         # 3. GROUNDING (Vision)
         raw_action = vision.get_action(high_level_plan, screenshot)
         action_data = parser.parse(raw_action)
-        
+
         # 4. ACTION (Motor)
         if action_data:
             success = motor.execute(action_data)
