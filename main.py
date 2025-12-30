@@ -27,6 +27,8 @@ def main():
     try:
         w, h = pyautogui.size()
         print(f"DEBUG: Screen size detected as {w}x{h}")
+        if w < 1280 or h < 720:
+            print("WARNING: Detected low resolution (headless?). Agent will operate in NATIVE resolution mode.")
     except Exception as e:
         print(f"WARNING: Could not detect screen size: {e}. using default 1920x1080")
         w, h = 1920, 1080
@@ -40,18 +42,36 @@ def main():
         cycle_id = datetime.now().strftime("%H%M%S")
 
         # 1. PERCEPTION
-        screenshot = pyautogui.screenshot()
-        # Save debug screenshot
-        screenshot.save(f"debug_monitor_{cycle_id}.png")
-        print(f"DEBUG: Saved screenshot to debug_monitor_{cycle_id}.png")
+        try:
+            screenshot = pyautogui.screenshot()
+            # Save debug screenshot
+            screenshot.save(f"debug_monitor_{cycle_id}.png")
+            print(f"DEBUG: Saved screenshot to debug_monitor_{cycle_id}.png")
+        except Exception as e:
+            print(f"CRITICAL PERCEPTION ERROR: Could not take screenshot. {e}")
+            print("HINT: Ensure 'scrot' is installed (see install.md) and DISPLAY=:0 is correct.")
+            time.sleep(5)
+            continue
 
         screen_text = ocr.extract_text(screenshot)
         print(f"PERCEPTION (OCR PREVIEW):\n{screen_text[:500]}\n[...]")
         
+        if len(screen_text.strip()) == 0:
+            print("(!) WARNING: OCR detected 0 characters.")
+            print("POSSIBLE CAUSES:")
+            print("1. Screen is locked (Black screen). -> Enable Auto-Login (see install.md).")
+            print("2. Missing dependencies (scrot/tesseract). -> Run 'sudo apt install scrot tesseract-ocr'.")
+            print("3. Application is purely graphical with no text.")
+            # We proceed anyway, relying on Vision to see icons.
+
         # 2. PLANNING (Brain)
         high_level_plan = planner.plan_next_step(objective, memory, screen_text)
 
         # 3. GROUNDING (Vision)
+        # Check if plan is a direct command to skip vision
+        if "type" in high_level_plan.lower() or "press" in high_level_plan.lower():
+             pass
+
         raw_action = vision.get_action(high_level_plan, screenshot)
         action_data = parser.parse(raw_action)
 
