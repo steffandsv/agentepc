@@ -1,20 +1,11 @@
 import os
+# Ensure Display is set before importing pyautogui
+os.environ["DISPLAY"] = ":0"
+
 import time
-import sys
-
-# 1. Configuração CRÍTICA de Display antes de qualquer import gráfico
-# Isso garante que o PyAutoGUI saiba onde rodar
-if "DISPLAY" not in os.environ:
-    os.environ["DISPLAY"] = ":0"
-
-try:
-    import pyautogui
-except ImportError:
-    print("ERRO: PyAutoGUI não instalado ou dependências de sistema faltando.")
-    print("Execute: sudo apt install python3-tk python3-dev scrot xclip")
-    sys.exit(1)
-
+import pyautogui
 from datetime import datetime
+from core.config import config
 from core.brain.planner import Planner
 from core.brain.memory import ShortTermMemory
 from core.vision.client import VisionClient
@@ -22,40 +13,25 @@ from core.vision.parser import ActionParser
 from core.vision.ocr import OCRProcessor
 from core.action.motor import Motor
 
-# Configurações de segurança do PyAutoGUI
-pyautogui.FAILSAFE = True
-pyautogui.PAUSE = 1.5  # Aumentado para 1.5s igual ao script antigo (dá tempo da UI responder)
-
-def wake_up_screen():
-    """
-    Função vital: Garante que a tela não está em modo de economia de energia (tela preta).
-    Sem isso, o OCR lê 'nada' e o agente falha.
-    """
-    try:
-        pyautogui.press('esc')
-        pyautogui.moveRel(10, 0)
-        time.sleep(0.5)
-        pyautogui.moveRel(-10, 0)
-    except Exception as e:
-        print(f"Aviso: Não foi possível acordar o monitor: {e}")
-
 def main():
-    print("--- SOVEREIGN AGENT V3 (CORRIGIDO) ---")
+    print("--- SOVEREIGN AGENT V3 (HYBRID ARCHITECTURE) ---")
     
-    # Inicializa Componentes
+    # Initialize Components
     memory = ShortTermMemory()
     planner = Planner()
     vision = VisionClient()
     ocr = OCRProcessor()
     motor = Motor()
     
-    # Detecção Robusta de Tela
+    # Determine Screen Size (Dynamic)
     try:
         w, h = pyautogui.size()
-        print(f"DEBUG: Resolução detectada: {w}x{h}")
+        print(f"DEBUG: Screen size detected as {w}x{h}")
+        if w < 1280 or h < 720:
+            print("WARNING: Detected low resolution (headless?). Agent will operate in NATIVE resolution mode.")
     except Exception as e:
-        print(f"ALERTA: Falha ao detectar tela ({e}). Assumindo 1024x768 (Safe Mode).")
-        w, h = 1024, 768
+        print(f"WARNING: Could not detect screen size: {e}. using default 1920x1080")
+        w, h = 1920, 1080
 
     parser = ActionParser(w, h)
     
@@ -65,53 +41,54 @@ def main():
         print("\n--- NEW CYCLE ---")
         cycle_id = datetime.now().strftime("%H%M%S")
 
-        # 1. ACORDAR (Passo que faltava!)
-        wake_up_screen()
-        time.sleep(1) # Espera a tela acender
-
-        # 2. PERCEPÇÃO
+        # 1. PERCEPTION
         try:
             screenshot = pyautogui.screenshot()
+            # Save debug screenshot
+            screenshot.save(f"debug_monitor_{cycle_id}.png")
+            print(f"DEBUG: Saved screenshot to debug_monitor_{cycle_id}.png")
         except Exception as e:
-            print(f"CRÍTICO: Falha ao tirar screenshot. Instale o 'scrot' (sudo apt install scrot). Erro: {e}")
+            print(f"CRITICAL PERCEPTION ERROR: Could not take screenshot. {e}")
+            print("HINT: Ensure 'scrot' is installed (see install.md) and DISPLAY=:0 is correct.")
             time.sleep(5)
             continue
 
-        # Debug visual (Salva o que o robô está vendo)
-        screenshot.save(f"debug_monitor_latest.png")
-        
         screen_text = ocr.extract_text(screenshot)
+        print(f"PERCEPTION (OCR PREVIEW):\n{screen_text[:500]}\n[...]")
         
-        # Verificação de Cegueira
-        if not screen_text.strip():
-            print("(!) AVISO: Tela parece vazia ou bloqueada. Tentando desbloqueio cego...")
-            # Se não vê nada, tenta dar Enter para tirar screensaver
-            pyautogui.press('enter')
-            time.sleep(2)
-            continue
-            
-        print(f"PERCEPTION (OCR): {screen_text[:100]}...")
-        
-        # 3. PLANEJAMENTO (Cérebro)
-        high_level_plan = planner.plan_next_step(objective, memory, screen_text)
-        print(f"🧠 PLANO: {high_level_plan}")
+        if len(screen_text.strip()) == 0:
+            print("(!) WARNING: OCR detected 0 characters.")
+            print("POSSIBLE CAUSES:")
+            print("1. Screen is locked (Black screen). -> Enable Auto-Login (see install.md).")
+            print("2. Missing dependencies (scrot/tesseract). -> Run 'sudo apt install scrot tesseract-ocr'.")
+            print("3. Application is purely graphical with no text.")
+            # We proceed anyway, relying on Vision to see icons.
 
-        # 4. GROUNDING (Visão)
+        # 2. PLANNING (Brain)
+        high_level_plan = planner.plan_next_step(objective, memory, screen_text)
+
+        # 3. GROUNDING (Vision)
+        # Check if plan is a direct command to skip vision
+        if "type" in high_level_plan.lower() or "press" in high_level_plan.lower():
+             pass
+
         raw_action = vision.get_action(high_level_plan, screenshot)
         action_data = parser.parse(raw_action)
 
-        # 5. AÇÃO (Motor)
-        success = False
+        # 4. ACTION (Motor)
         if action_data:
-            print(f"⚡ EXECUÇÃO: {action_data}")
             success = motor.execute(action_data)
             status = "SUCCESS" if success else "FAILED"
         else:
-            print(f"FALHA: Não foi possível traduzir a ação: {raw_action}")
+            print(f"FAILED to parse action from: {raw_action}")
             status = "FAILED PARSING"
+            success = False
 
-        # 6. MEMÓRIA
-        memory.add_event(f"Plano: {high_level_plan} -> Ação: {raw_action} -> Resultado: {status}")
+        # 5. REFLECTION / MEMORY
+        memory.add_event(f"State: ... -> Plan: {high_level_plan} -> Action: {raw_action} -> Result: {status}")
+        
+        if not success and "wait" not in high_level_plan.lower():
+            print("(!) Retrying or changing strategy next cycle...")
         
         time.sleep(2)
 

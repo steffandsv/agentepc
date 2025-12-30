@@ -71,5 +71,6 @@ class ActionParser:
         return None
 
     def _scale_coord(self, val: float, dimension: int) -> int:
-        """Scales a 0-1000 coordinate to screen pixels."""
-        return int((val / 1000.0) * dimension)
+        """Scales a 0-1000 coordinate to screen pixels and clamps it."""
+        pixel_val = int((val / 1000.0) * dimension)
+        return max(0, min(pixel_val, dimension - 1))
