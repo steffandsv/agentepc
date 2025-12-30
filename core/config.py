@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
+    # User provided key takes precedence if env var not set
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "sk-bbc81b74efdc483f933a16ff1af24c45")
     DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
     MODEL_VISION: str = os.getenv("MODEL_VISION", "ui-tars")
