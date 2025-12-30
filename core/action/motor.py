@@ -12,6 +12,27 @@ class Motor:
     def __init__(self):
         pass
 
+    def _normalize_key(self, key_name: str) -> str:
+        """
+        Normalizes key names to PyAutoGUI standard.
+        """
+        key = key_name.lower().strip()
+
+        # Enhanced Mapping for Super/Windows key
+        mapping = {
+            "return": "enter",
+            "super": "winleft", # PyAutoGUI uses 'winleft' or 'winright' for Linux usually
+            "windows": "winleft",
+            "win": "winleft",
+            "meta": "winleft",
+            "cmd": "winleft",
+            "command": "winleft",
+            "control": "ctrl",
+            "esc": "escape"
+        }
+
+        return mapping.get(key, key)
+
     def execute(self, action_data: Dict[str, Any]) -> bool:
         """
         Executes the parsed action.
@@ -37,32 +58,18 @@ class Motor:
                 return True
 
             elif action_type == "key":
-                key = action_data["content"].lower()
-                # Map some common discrepancies
-                key_map = {
-                    "return": "enter",
-                    "super": "win",
-                    "windows": "win",
-                    "control": "ctrl"
-                }
-                key = key_map.get(key, key)
+                raw_key = action_data["content"]
+                key = self._normalize_key(raw_key)
 
-                print(f"ACT: Pressing key '{key}'")
+                print(f"ACT: Pressing key '{key}' (raw: {raw_key})")
                 pyautogui.press(key)
                 return True
 
             elif action_type == "hotkey":
-                keys = action_data["keys"]
-                # Clean up keys
-                key_map = {
-                    "return": "enter",
-                    "super": "win",
-                    "windows": "win",
-                    "control": "ctrl"
-                }
-                keys = [key_map.get(k.lower(), k.lower()) for k in keys]
+                raw_keys = action_data["keys"]
+                keys = [self._normalize_key(k) for k in raw_keys]
 
-                print(f"ACT: Hotkey sequence {keys}")
+                print(f"ACT: Hotkey sequence {keys} (raw: {raw_keys})")
                 pyautogui.hotkey(*keys)
                 return True
 
@@ -70,13 +77,4 @@ class Motor:
             print(f"ACT Error: {e}")
             return False
 
-        return False
-
-    def special_action(self, action_name: str) -> bool:
-        """Handles special high-level actions that might need lower level access."""
-        if action_name == "open_terminal":
-             # Fallback if clicking fails
-             print("ACT: Launching terminal via hotkey")
-             pyautogui.hotkey('ctrl', 'alt', 't')
-             return True
         return False

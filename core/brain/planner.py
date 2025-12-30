@@ -1,6 +1,7 @@
 from openai import OpenAI
 from core.config import config
 from core.brain.memory import ShortTermMemory
+import difflib
 
 class Planner:
     def __init__(self):
@@ -9,6 +10,38 @@ class Planner:
             base_url=config.DEEPSEEK_BASE_URL
         )
         self.model = config.MODEL_BRAIN
+
+        # Stagnation Watchdog State
+        self.previous_plan = ""
+        self.previous_screen_text = ""
+        self.stagnation_counter = 0
+
+    def _check_stagnation(self, current_plan: str, current_screen_text: str) -> bool:
+        """
+        Detects if the agent is stuck in a loop (same plan, same screen).
+        Returns True if stuck.
+        """
+        # 1. Check if plan is identical
+        plan_match = (current_plan.strip().lower() == self.previous_plan.strip().lower())
+
+        # 2. Check if screen content is very similar (>90%)
+        # Using difflib for similarity ratio
+        matcher = difflib.SequenceMatcher(None, self.previous_screen_text, current_screen_text)
+        screen_similarity = matcher.ratio()
+
+        is_stagnant = plan_match and screen_similarity > 0.90
+
+        if is_stagnant:
+            self.stagnation_counter += 1
+            print(f"(!) WATCHDOG: Stagnation detected ({self.stagnation_counter}/3). Plan={current_plan}, ScreenSim={screen_similarity:.2f}")
+        else:
+            self.stagnation_counter = 0
+
+        # Update history
+        self.previous_plan = current_plan
+        self.previous_screen_text = current_screen_text
+
+        return self.stagnation_counter >= 3
 
     def plan_next_step(self, objective: str, memory: ShortTermMemory, screen_text: str) -> str:
         """
@@ -31,8 +64,8 @@ class Planner:
 
         INSTRUCTIONS:
         1. SELF-REFLECTION: If the screen is dominated by text like "ENTER OBJECTIVE", "Sovereign Agent", or "NEW CYCLE", you are looking at your own internal logs.
-           - Action: "Press keys 'super+h'" (Minimize) OR "Wait".
-           - DO NOT open a new terminal if one is already open but obscured by your logs. Minimize first.
+           - Action: "Press keys 'super+d'" (Show Desktop - Hides All Windows) OR "Wait".
+           - DO NOT open a new terminal if one is already open but obscured by your logs. HIDE YOURSELF FIRST.
         2. UNLOCKING: If screen locked ("Password"), -> "Type '{config.PC_PASSWORD}'" -> "Press key 'enter'".
         3. IDLE: If you have no clear next step or are waiting for a process, output "Wait".
         4. OUTPUT FORMAT: Plain text instruction. No Markdown.
@@ -47,7 +80,6 @@ class Planner:
 
         try:
             print("🧠 DeepSeek Thinking...")
-            print(f"DEBUG: Sending Prompt to Brain:\n{system_prompt[:200]}...[snip]...{user_prompt}")
 
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -59,6 +91,12 @@ class Planner:
             )
             plan = response.choices[0].message.content.strip()
             print(f"🧠 Plan (Raw Response): {plan}")
+
+            # Watchdog Check
+            if self._check_stagnation(plan, screen_text):
+                print("(!) WATCHDOG TRIGGERED: Forcing ESCAPE action.")
+                return "Press key 'esc'"
+
             return plan
         except Exception as e:
             print(f"Brain Error: {e}")

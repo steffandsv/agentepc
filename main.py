@@ -69,12 +69,16 @@ def check_self_observation(ocr_text: str) -> str:
 
     if count >= 1:
         print("(!) SELF-AWARENESS: I see my own logs.")
-        return "[SYSTEM WARNING: YOU ARE LOOKING AT YOUR OWN CONSOLE. DO NOT TYPE COMMANDS HERE. MINIMIZE THIS WINDOW (SUPER+H) OR WAIT.]\n\n"
+        return "[SYSTEM WARNING: YOU ARE LOOKING AT YOUR OWN CONSOLE. DO NOT TYPE COMMANDS HERE. MINIMIZE THIS WINDOW (SUPER+D) OR WAIT.]\n\n"
     return ""
 
 def main():
     print("--- SOVEREIGN AGENT V3 (DAEMON MODE) ---")
     print("[*] Waiting for commands via core/state.py...")
+
+    # Ensure static directory exists
+    if not os.path.exists("static"):
+        os.makedirs("static")
 
     # Initialize Components
     memory = ShortTermMemory()
@@ -112,7 +116,12 @@ def main():
         # 2. PERCEPTION
         try:
             screenshot = pyautogui.screenshot()
-            # screenshot.save("debug_monitor.png") # Optional: Enable for debugging
+
+            # Save for Web UI
+            try:
+                screenshot.save("static/latest_monitor.png")
+            except Exception as save_err:
+                print(f"WARNING: Could not save monitor image: {save_err}")
 
             if is_screen_black(screenshot):
                 print("(!) CRITICAL: Screen appears to be BLACK.")
