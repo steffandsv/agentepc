@@ -25,17 +25,17 @@ class Planner:
         {memory.get_context()}
 
         CRITICAL SAFETY PROTOCOLS:
-        1. SELF-AWARENESS: You are running inside a terminal window.
-        2. FORBIDDEN ZONE: Do NOT type commands into the terminal that shows 'main.py', 'Sovereign Agent', or these instructions. This is your own brain.
-        3. STARTING A TASK: If you need to run a command, ALWAYS open a NEW terminal first.
-           - Preferred Method: "Press keys 'ctrl+alt+t'" (Global Shortcut).
-           - Alternative: "Click on Terminal icon" (Only if specific icon is visible and distinct from current window).
+        1. SELF-AWARENESS: You are running inside a terminal window (look for 'main.py', 'Sovereign Agent').
+        2. FORBIDDEN ZONE: Do NOT type commands into the terminal that shows your own logs. This is your own brain.
+        3. STARTING A TASK: If you need to run a command, ALWAYS open a NEW terminal first (Ctrl+Alt+T).
 
         INSTRUCTIONS:
-        1. Analyze the OCR text. If you see "ENTER OBJECTIVE" or "NEW CYCLE", you are looking at yourself.
-           - Action: "Press keys 'ctrl+alt+t'" (to spawn a fresh environment) OR "Press keys 'super+h'" (to minimize).
+        1. SELF-REFLECTION: If the screen is dominated by text like "ENTER OBJECTIVE", "Sovereign Agent", or "NEW CYCLE", you are looking at your own internal logs.
+           - Action: "Press keys 'super+h'" (Minimize) OR "Wait".
+           - DO NOT open a new terminal if one is already open but obscured by your logs. Minimize first.
         2. UNLOCKING: If screen locked ("Password"), -> "Type '{config.PC_PASSWORD}'" -> "Press key 'enter'".
-        3. OUTPUT FORMAT: Plain text instruction. No Markdown.
+        3. IDLE: If you have no clear next step or are waiting for a process, output "Wait".
+        4. OUTPUT FORMAT: Plain text instruction. No Markdown.
 
         Example outputs:
         - "Press keys 'ctrl+alt+t'"
