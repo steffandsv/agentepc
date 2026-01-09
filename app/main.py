@@ -70,3 +70,8 @@ async def websocket_endpoint(websocket: WebSocket):
             # We can handle commands from WS too if we want
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+if __name__ == "__main__":
+    import uvicorn
+    # Allow access from internal network by binding to 0.0.0.0
+    uvicorn.run(app, host="0.0.0.0", port=8000)
