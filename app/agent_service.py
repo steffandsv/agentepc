@@ -18,6 +18,16 @@ logger = logging.getLogger("AgentService")
 class TaskRequest(BaseModel):
     task: str
 
+class CustomChatOpenAI(ChatOpenAI):
+    """
+    Wrapper around ChatOpenAI to provide the 'provider' attribute expected by browser-use 0.11.2+
+    """
+    @property
+    def provider(self) -> str:
+        # browser-use checks if provider == 'browser-use' to enable flash mode.
+        # We return 'openai' (or 'custom') to treat it as a standard model.
+        return 'openai'
+
 class AgentService:
     _instance = None
 
@@ -85,7 +95,8 @@ class AgentService:
 
             # LLM Configuration
             # Pointing to local LLM running on port 8080
-            llm = ChatOpenAI(
+            # We use the CustomChatOpenAI to satisfy the 'provider' check in browser-use
+            llm = CustomChatOpenAI(
                 base_url='http://127.0.0.1:8080/v1',
                 api_key='sk-no-key-required',
                 model='Qwen_Qwen3-8B-Q4_K_M.gguf',
