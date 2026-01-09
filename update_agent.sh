@@ -44,7 +44,7 @@ git clean -fd
 
 # 5. BUILD (Sincroniza dependências)
 log "Reconstruindo dependências (uv sync)..."
-/home/steff/.cargo/bin/uv sync
+/home/steff/.local/bin/uv sync
 if [ $? -ne 0 ]; then
     log "Erro ao sincronizar dependências via uv."
     exit 1
